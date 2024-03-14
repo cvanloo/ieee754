@@ -1,7 +1,12 @@
 .PHONY: all
 
-all: fp.c
+all: fp
+
+fp: fp.c
 	clang -o fp -Wall -Wextra -Werror -O0 fp.c
+
+test: fp
+	@./fp
 
 clean:
 	$(RM) fp
