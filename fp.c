@@ -41,7 +41,7 @@ union Float_Conv {
 void print_bits(void *b, size_t sz);
 void print_float_bits(Float a);
 uint32_t prepend_hidden_bit(uint32_t mantissa, uint8_t exponent);
-uint32_t shift_mantissa(uint32_t mantissa, uint8_t shift_amount);
+uint32_t shift_mantissa(uint32_t mantissa, int8_t shift_amount);
 int highest_one_bit(uint32_t bits);
 void normalize_mantissa(uint32_t *mant, uint8_t *exp);
 Float bits_to_float(uint8_t sign, uint8_t exponent, uint32_t mantissa);
@@ -49,25 +49,25 @@ Float addition(Float a, Float b);
 bool test_two_floats(float a, float b);
 
 int main(void) {
-    TEST(1.5f, 0.75f);
+    TEST(1.5f, 0.75f); // example from lecture
 
-    TEST(5.1f, 2.8f);
-    TEST(2.8f, 5.1f);
+    TEST(5.1f, 2.8f); // first mantissa smaller than second, first exponent bigger than second
+    TEST(2.8f, 5.1f); // first mantissa bigger than second, first exponent smaller than second
 
-    TEST(1.5f, 3.25f);
-    TEST(3.25f, 1.5f);
+    TEST(1.5f, 3.25f); // first mantissa and exponent smaller than second
+    TEST(3.25f, 1.5f); // first mantissa and exponent bigger than second
 
-    TEST(-5.1f, 2.8f);
-    TEST(2.8f, -5.1f);
+    TEST(-5.1f, 2.8f); // first mantissa smaller than second, first exponent bigger than second
+    TEST(2.8f, -5.1f); // first mantissa bigger than second, first exponent smaller than second
 
-    TEST(1.5f, -3.25f);
-    TEST(-3.25f, 1.5f);
+    TEST(1.5f, -3.25f); // first mantissa and exponent smaller than second
+    TEST(-3.25f, 1.5f); // first mantissa and exponent bigger than second
 
-    TEST(-5.1f, -2.8f);
-    TEST(-2.8f, -5.1f);
+    TEST(-5.1f, -2.8f); // both negative: first mantissa smaller than second, first exponent bigger than second
+    TEST(-2.8f, -5.1f); // both negative: first mantissa bigger than second, first exponent smaller than second
 
-    TEST(-1.5f, -3.25f);
-    TEST(-3.25f, -1.5f);
+    TEST(-1.5f, -3.25f); // both negative: first mantissa bigger than second, first exponent smaller than second
+    TEST(-3.25f, -1.5f); // both negative: first mantissa smaller than second, first exponent bigger than second
 
     float zero = 0.0f;
     float value = 419037.1875f;
@@ -111,7 +111,7 @@ uint32_t prepend_hidden_bit(uint32_t m, uint8_t e) {
         : m | (1 << 23);
 }
 
-uint32_t shift_mantissa(uint32_t m, uint8_t n) {
+uint32_t shift_mantissa(uint32_t m, int8_t n) {
     return n > 0
         ? m >> n
         : m << (-1*n);
@@ -132,6 +132,7 @@ void normalize_mantissa(uint32_t *mant, uint8_t *exp) {
     int hb = highest_one_bit(*mant);
     if (hb == -1) return;
     int shift = hb - 23;
+    printf("+shift (normalize): %d\n", shift);
     *mant = shift_mantissa(*mant, shift);
     *exp = *exp + shift;
 }
@@ -144,18 +145,29 @@ Float bits_to_float(uint8_t sign, uint8_t exp, uint32_t mant) {
 }
 
 Float addition(Float a, Float b) {
-    uint8_t sign_a = SIGN(a);
-    uint8_t sign_b = SIGN(b);
-    uint8_t exp_a = EXP(a);
-    uint8_t exp_b = EXP(b);
-    uint32_t mant_tail_a = MANT(a);
-    uint32_t mant_tail_b = MANT(b);
+    uint32_t abs_a = a & 0x7FFFFFFF;
+    uint32_t abs_b = b & 0x7FFFFFFF;
 
     printf("a: "); print_float_bits(a);
     printf("b: "); print_float_bits(b);
 
-    uint32_t mant_a = prepend_hidden_bit(mant_tail_a, exp_a);
-    uint32_t mant_b = prepend_hidden_bit(mant_tail_b, exp_b);
+    printf("abs a: "); print_float_bits(a & 0x7FFFFFFF);
+    printf("abs b: "); print_float_bits(b & 0x7FFFFFFF);
+
+    if (abs_a < abs_b) {
+        printf("switching a <---> b\n");
+        return addition(b, a);
+    }
+
+    uint8_t sign_a = SIGN(a);
+    uint8_t sign_b = SIGN(b);
+    uint8_t exp_a = EXP(a);
+    uint8_t exp_b = EXP(b);
+    uint32_t mant_a = MANT(a);
+    uint32_t mant_b = MANT(b);
+
+    mant_a = prepend_hidden_bit(mant_a, exp_a);
+    mant_b = prepend_hidden_bit(mant_b, exp_b);
 
     printf("prepend hidden bit mant_a: "); print_float_bits(mant_a);
     printf("prepend hidden bit mant_b: "); print_float_bits(mant_b);
@@ -164,16 +176,11 @@ Float addition(Float a, Float b) {
     uint8_t exp_b_cmp = exp_b == 0 ? 1 : exp_b;
 
     if (exp_a_cmp - exp_b_cmp != 0) {
-        uint32_t abs_a = a & 0x7FFFFFFF;
-        uint32_t abs_b = b & 0x7FFFFFFF;
-        if (abs_a > abs_b) {
-            mant_b = shift_mantissa(mant_b, exp_a_cmp - exp_b_cmp);
-        } else {
-            mant_a = shift_mantissa(mant_a, exp_b_cmp - exp_a_cmp);
-        }
+        printf("+shift: %d\n", exp_a_cmp - exp_b_cmp);
+        mant_b = shift_mantissa(mant_b, exp_a_cmp - exp_b_cmp);
     }
 
-    printf("shift smaller mantissa mant_a: "); print_float_bits(mant_a);
+    printf(" no shift for larger m mant_a: "); print_float_bits(mant_a);
     printf("shift smaller mantissa mant_b: "); print_float_bits(mant_b);
 
     uint32_t mant_r;
@@ -183,23 +190,26 @@ Float addition(Float a, Float b) {
         mant_r = mant_a - mant_b;
     }
 
+    printf("+initial mant_r: "); print_float_bits(mant_r);
+
     // ?
-    uint8_t exp_r;
-    if (exp_a == 0 || exp_b == 0) {
-        exp_r = exp_a == 0 ? exp_b : exp_a;
-    } else {
-        // (not) original tail ?
-        exp_r = mant_a <= mant_b ? exp_b : exp_a;
-    }
+    //uint8_t exp_r;
+    //if (exp_a == 0 || exp_b == 0) {
+    //    exp_r = exp_a == 0 ? exp_b : exp_a;
+    //} else {
+    //    // (not) original tail ?
+    //    exp_r = mant_a <= mant_b ? exp_b : exp_a;
+    //}
+    uint8_t exp_r = exp_a;
 
     normalize_mantissa(&mant_r, &exp_r);
 
-    uint8_t sign_r;
-    if (sign_a == sign_b) {
-        sign_r = sign_a;
-    } else {
-        sign_r = mant_a <= mant_b ? sign_b : sign_a;
-    }
+    //if (sign_a == sign_b) {
+    //    sign_r = sign_a;
+    //} else {
+    //    sign_r = mant_a <= mant_b ? sign_b : sign_a;
+    //}
+    uint8_t sign_r = sign_a;
 
     Float r = bits_to_float(sign_r, exp_r, mant_r);
     return r;
