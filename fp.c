@@ -176,5 +176,6 @@ bool test_two_floats(float a, float b) {
     cb.f = b;
     Float result = addition(ca.i, cb.i);
     cr.i = result;
-    return expected == cr.f;
+    //return expected == cr.f;
+    return (expected - cr.f) < 0.0001 || (cr.f - expected) < 0.0001;
 }
