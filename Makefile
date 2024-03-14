@@ -1,4 +1,4 @@
-.PHONY: all
+.PHONY: all test clean .FORCE
 
 all: fp
 
@@ -9,6 +9,6 @@ test: fp .FORCE
 	@./fp
 
 clean:
-	$(RM) fp
+	-$(RM) fp
 
 .FORCE:

@@ -118,6 +118,7 @@ Float bits_to_float(uint8_t sign, uint8_t exp, uint32_t mant) {
     return r;
 }
 
+// @note: https://www.rfwireless-world.com/Tutorials/floating-point-tutorial.html
 Float addition(Float a, Float b) {
     uint32_t abs_a = a & 0x7FFFFFFF;
     uint32_t abs_b = b & 0x7FFFFFFF;
@@ -133,9 +134,6 @@ Float addition(Float a, Float b) {
     uint32_t mant_a = MANT(a);
     uint32_t mant_b = MANT(b);
 
-    //uint32_t mant_tail_a = mant_a;
-    //uint32_t mant_tail_b = mant_b;
-
     mant_a = prepend_hidden_bit(mant_a, exp_a);
     mant_b = prepend_hidden_bit(mant_b, exp_b);
 
@@ -145,7 +143,6 @@ Float addition(Float a, Float b) {
     uint8_t exp_r = exp_a;
 
     if (exp_a_cmp - exp_b_cmp != 0) {
-        //if (mant_tail_a > mant_tail_b) {
         if (mant_a > mant_b) {
             mant_b = shift_mantissa(mant_b, exp_a_cmp - exp_b_cmp);
             // exp_r = exp_a;
@@ -164,9 +161,7 @@ Float addition(Float a, Float b) {
 
     normalize_mantissa(&mant_r, &exp_r);
 
-    uint8_t sign_r = sign_a;
-
-    Float r = bits_to_float(sign_r, exp_r, mant_r);
+    Float r = bits_to_float(sign_a, exp_r, mant_r);
     return r;
 }
 
