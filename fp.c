@@ -50,34 +50,34 @@ bool test_two_floats(float a, float b);
 int main(void) {
     TEST(1.5f, 0.75f);
 
-    //TEST(5.1f, 2.8f);
-    //TEST(2.8f, 5.1f);
+    TEST(5.1f, 2.8f);
+    TEST(2.8f, 5.1f);
 
-    //TEST(1.5f, 3.25f);
-    //TEST(3.25f, 1.5f);
+    TEST(1.5f, 3.25f);
+    TEST(3.25f, 1.5f);
 
     TEST(-5.1f, 2.8f);
-    //TEST(2.8f, -5.1f);
+    TEST(2.8f, -5.1f);
 
-    //TEST(1.5f, -3.25f);
-    //TEST(-3.25f, 1.5f);
+    TEST(1.5f, -3.25f);
+    TEST(-3.25f, 1.5f);
 
-    //TEST(-5.1f, -2.8f);
-    //TEST(-2.8f, -5.1f);
+    TEST(-5.1f, -2.8f);
+    TEST(-2.8f, -5.1f);
 
-    //TEST(-1.5f, -3.25f);
-    //TEST(-3.25f, -1.5f);
+    TEST(-1.5f, -3.25f);
+    TEST(-3.25f, -1.5f);
 
-    //float zero = 0.0f;
-    //float value = 419037.1875f;
-    //float nonZeroMantissa1 = 5.90381056005e-41f;
-    //float nonZeroMantissa2 = 7.35996705665e-39f;
+    float zero = 0.0f;
+    float value = 419037.1875f;
+    float nonZeroMantissa1 = 5.90381056005e-41f;
+    float nonZeroMantissa2 = 7.35996705665e-39f;
 
-    //TEST(zero, value);
-    //TEST(value, zero);
-    //TEST(zero, zero);
-    //TEST(nonZeroMantissa1, nonZeroMantissa2);
-    //TEST(nonZeroMantissa2, zero);
+    TEST(zero, value);
+    TEST(value, zero);
+    TEST(zero, zero);
+    TEST(nonZeroMantissa1, nonZeroMantissa2);
+    TEST(nonZeroMantissa2, zero);
 
     return failed_tests;
 }
@@ -117,11 +117,9 @@ int highest_one_bit(uint32_t b) {
 }
 
 void normalize_mantissa(uint32_t *mant, uint8_t *exp) {
+    if (*exp == 0) return;
     int hb = highest_one_bit(*mant);
-    if (hb == -1) {
-        *exp = 0;
-        return;
-    }
+    if (hb == -1) return;
     int shift = hb - 23;
     *mant = shift_mantissa(*mant, shift);
     *exp = *exp + shift;
@@ -135,18 +133,17 @@ Float bits_to_float(uint8_t sign, uint8_t exp, uint32_t mant) {
 }
 
 Float addition(Float a, Float b) {
-    uint8_t exp_a = EXP(a);
-    uint8_t exp_b = EXP(b);
-
-    if (exp_a < exp_b) return addition(b, a);
-
-    printf("a "); print_float_bits(a);
-    printf("b "); print_float_bits(b);
-
-    uint8_t sign_a = SIGN(a);
-    uint8_t sign_b = SIGN(b);
     uint32_t mant_a = MANT(a);
     uint32_t mant_b = MANT(b);
+
+    if (mant_a < mant_b) {
+        return addition(b, a);
+    }
+
+    uint8_t exp_a = EXP(a);
+    uint8_t exp_b = EXP(b);
+    uint8_t sign_a = SIGN(a);
+    uint8_t sign_b = SIGN(b);
 
     uint8_t sign_r = sign_a;
     uint8_t exp_r = exp_a;
@@ -154,21 +151,21 @@ Float addition(Float a, Float b) {
 
     mant_a = prepend_hidden_bit(mant_a, exp_a);
     mant_b = prepend_hidden_bit(mant_b, exp_b);
-    mant_b = shift_mantissa(mant_b, exp_a - exp_b);
-    printf("~a "); print_float_bits(mant_a);
-    printf("~b "); print_float_bits(mant_b);
+
+    uint8_t exp_a_cmp = exp_a == 0 ? 1 : exp_a;
+    uint8_t exp_b_cmp = exp_b == 0 ? 1 : exp_b;
+
+    mant_b = shift_mantissa(mant_b, exp_a_cmp - exp_b_cmp);
 
     if (sign_a == sign_b) {
         mant_r = mant_a + mant_b;
     } else {
         mant_r = mant_a - mant_b;
     }
-    printf("r "); print_float_bits(mant_r);
 
     normalize_mantissa(&mant_r, &exp_r);
 
     Float r = bits_to_float(sign_r, exp_r, mant_r);
-    printf("=r "); print_float_bits(r);
     return r;
 }
 
