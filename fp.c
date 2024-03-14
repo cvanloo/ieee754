@@ -34,7 +34,6 @@ Float addition(Float a, Float b);
 int test_two_floats(float a, float b);
 
 int main(void) {
-#if 0
     TEST(1.5f, 0.75f); // example from lecture
 
     TEST(5.1f, 2.8f); // first mantissa smaller than second, first exponent bigger than second
@@ -42,12 +41,10 @@ int main(void) {
 
     TEST(1.5f, 3.25f); // first mantissa and exponent smaller than second
     TEST(3.25f, 1.5f); // first mantissa and exponent bigger than second
-#endif
 
     TEST(-5.1f, 2.8f); // first mantissa smaller than second, first exponent bigger than second
     TEST(2.8f, -5.1f); // first mantissa bigger than second, first exponent smaller than second
 
-#if 0
     TEST(1.5f, -3.25f); // first mantissa and exponent smaller than second
     TEST(-3.25f, 1.5f); // first mantissa and exponent bigger than second
 
@@ -67,7 +64,6 @@ int main(void) {
     TEST(zero, zero);
     TEST(nonZeroMantissa1, nonZeroMantissa2);
     TEST(nonZeroMantissa2, zero);
-#endif
 
     return failed_tests;
 }
@@ -137,14 +133,26 @@ Float addition(Float a, Float b) {
     uint32_t mant_a = MANT(a);
     uint32_t mant_b = MANT(b);
 
+    //uint32_t mant_tail_a = mant_a;
+    //uint32_t mant_tail_b = mant_b;
+
     mant_a = prepend_hidden_bit(mant_a, exp_a);
     mant_b = prepend_hidden_bit(mant_b, exp_b);
 
     uint8_t exp_a_cmp = exp_a == 0 ? 1 : exp_a;
     uint8_t exp_b_cmp = exp_b == 0 ? 1 : exp_b;
 
+    uint8_t exp_r = exp_a;
+
     if (exp_a_cmp - exp_b_cmp != 0) {
-        mant_b = shift_mantissa(mant_b, exp_a_cmp - exp_b_cmp);
+        //if (mant_tail_a > mant_tail_b) {
+        if (mant_a > mant_b) {
+            mant_b = shift_mantissa(mant_b, exp_a_cmp - exp_b_cmp);
+            // exp_r = exp_a;
+        } else {
+            mant_a = shift_mantissa(mant_a, exp_b_cmp - exp_a_cmp);
+            exp_r = exp_b;
+        }
     }
 
     uint32_t mant_r;
@@ -152,11 +160,7 @@ Float addition(Float a, Float b) {
         mant_r = mant_a + mant_b;
     } else {
         mant_r = mant_a - mant_b;
-
-        printf("+initial mant_r: "); print_float_bits(mant_r);
     }
-
-    uint8_t exp_r = exp_a;
 
     normalize_mantissa(&mant_r, &exp_r);
 
@@ -174,7 +178,7 @@ int test_two_floats(float a, float b) {
     Float result = addition(ca.i, cb.i);
     cr.i = result;
     ce.f = expected;
-    printf("expected: "); print_float_bits(ce.i);
-    printf("  actual: "); print_float_bits(cr.i);
+    //printf("expected: "); print_float_bits(ce.i);
+    //printf("  actual: "); print_float_bits(cr.i);
     return ce.i == cr.i; // compare bits and not float value
 }
