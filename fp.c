@@ -1,3 +1,16 @@
+// N = (-1)^S * 2^(E-127) * (1 + m)
+// m = M / 2^23
+//
+// (exponent stored as excess-127 => -127 is stored as a 0
+// enables us to compare floats like integers, e.g., f_a < f_b)
+//
+// E=0 => Subnormal
+// N = (-1)^S * 2^(-126) * (0 + m)
+//
+// E=255, M=0
+// Infinity/-Infinity, depending on S
+//
+// E=255, M!=0 => NaN (Not a Number)
 #include <stdio.h>
 #include <stdint.h>
 
@@ -65,6 +78,8 @@ int main(void) {
     TEST(nonZeroMantissa1, nonZeroMantissa2);
     TEST(nonZeroMantissa2, zero);
 
+    TEST(4.34234f, 1.23214f); // failing edge case, why?
+
     return failed_tests;
 }
 
@@ -81,7 +96,7 @@ void print_float_bits(Float a) {
 }
 
 uint32_t prepend_hidden_bit(uint32_t m, uint8_t e) {
-    return e == 0
+    return e == 0 // subnormal
         ? m
         : m | (1 << 23);
 }
@@ -103,7 +118,7 @@ int highest_one_bit(uint32_t b) {
 }
 
 void normalize_mantissa(uint32_t *mant, uint8_t *exp) {
-    if (*exp == 0) return;
+    if (*exp == 0) return; // subnormal
     int hb = highest_one_bit(*mant);
     if (hb == -1) return;
     int shift = hb - 23;
@@ -120,7 +135,7 @@ Float bits_to_float(uint8_t sign, uint8_t exp, uint32_t mant) {
 
 // @note: https://www.rfwireless-world.com/Tutorials/floating-point-tutorial.html
 Float addition(Float a, Float b) {
-    uint32_t abs_a = a & 0x7FFFFFFF;
+    uint32_t abs_a = a & 0x7FFFFFFF; // ignore sign bit
     uint32_t abs_b = b & 0x7FFFFFFF;
 
     if (abs_a < abs_b) {
@@ -137,7 +152,7 @@ Float addition(Float a, Float b) {
     mant_a = prepend_hidden_bit(mant_a, exp_a);
     mant_b = prepend_hidden_bit(mant_b, exp_b);
 
-    uint8_t exp_a_cmp = exp_a == 0 ? 1 : exp_a;
+    uint8_t exp_a_cmp = exp_a == 0 ? 1 : exp_a; // Subnormal: 1 is -126 in excess-127
     uint8_t exp_b_cmp = exp_b == 0 ? 1 : exp_b;
 
     uint8_t exp_r = exp_a;
@@ -173,7 +188,14 @@ int test_two_floats(float a, float b) {
     Float result = addition(ca.i, cb.i);
     cr.i = result;
     ce.f = expected;
-    //printf("expected: "); print_float_bits(ce.i);
-    //printf("  actual: "); print_float_bits(cr.i);
-    return ce.i == cr.i; // compare bits and not float value
+    int ok = ce.i == cr.i; // compare bits and not float value
+    if (!ok) {
+        printf("       a: "); print_float_bits(ca.i);
+        printf("       b: "); print_float_bits(cb.i);
+        printf("expected: "); print_float_bits(ce.i);
+        printf("  actual: "); print_float_bits(cr.i);
+
+        printf("expected %f / actual %f\n", ce.f, cr.f);
+    }
+    return ok;
 }
